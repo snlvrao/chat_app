@@ -138,7 +138,7 @@ int main(int argc, char *argv[])
 		}
 	}
 	
-	printf("\nConnection Established\n");
+	printf("\nConnection Established\n\n");
 	write(sfd, "", 1);
 
 	/* Communication begins - Monitor both stdin and socket simultaneously */

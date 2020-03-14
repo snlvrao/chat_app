@@ -66,7 +66,6 @@ static void tfunc(union sigval sv)
 			char connect_name[30];
 			memset(connect_name, 0, sizeof(connect_name));
 			sscanf(buffer, "%s %s", fqname, connect_name);
-			printf("%d Sending success\n", getpid());
 			write(cfd, "Success", 8);
 			usleep(1000*100); // To flush TCP buffer
 			write(cfd, connect_name, sizeof(connect_name));
@@ -293,7 +292,7 @@ int main(int argc, char *argv[])
 			{
 				fq_id = mq_open(fqname, O_RDWR, 0660, NULL);
 			}
-			printf("%d Starting Communication\n", pid, fq_id);
+			printf("%d Starting Communication\n", pid);
 			
 			while(ret = read(cfd, buf, sizeof(buf)))
 			{
