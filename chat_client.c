@@ -57,7 +57,6 @@ int main(int argc, char *argv[])
 	{
 		int i = 0, selfid;
 		
-		online_count = 0;
 		memset(buf, 0, sizeof(buf));
 		ret = read(sfd, &online_count, sizeof(online_count));
 		printf("\n%d Clients Online\n", online_count);
@@ -135,11 +134,20 @@ int main(int argc, char *argv[])
 				printf("\nUser Busy\n");
 				write(sfd, &fid, sizeof(fid));
 			}
+			else if(strcmp(buf, "User_Offline") == 0)
+			{
+				fid = 0;
+				printf("\nUser Offline\n");
+				write(sfd, &fid, sizeof(fid));
+			}
 		}
 	}
 	
-	printf("\nConnection Established\n\n");
+	printf("\nConnection Established\n");
 	write(sfd, "", 1);
+	
+	/* Options for user to navigate during communication */
+	printf("\nYou may now send messages to friend\nEnter #Logout to end connection and logout\n\n");
 
 	/* Communication begins - Monitor both stdin and socket simultaneously */
 	fd_set master;
@@ -168,24 +176,31 @@ int main(int argc, char *argv[])
 				perror("read");
 				exit(1);
 			}
-			printf("\n%s : %s\n", sender, buf);
-			if(ret == -1)
+			if(strcmp(buf, "#Logout") == 0)
 			{
-				perror("write");
-				exit(1);
+				printf("\nUser has gone offline\n\nConnection closed : Logging out...\n\n");
+				
+				/* Close connection */
+				close(sfd);
+				exit(0);
 			}
+			printf("\n%s : %s\n", sender, buf);
 		}
 		// if there is something in stdin
 		if(FD_ISSET(0, &read_fds))
 		{
 			memset(buf, 0, sizeof(buf));
-			//ret = read(0, buf, sizeof(buf));
 			__fpurge(stdin);
 			scanf("%[^\n]s", buf);
-			if(ret == -1)
+			if(strcmp(buf, "#Logout") == 0)
 			{
-				perror("read");
-				exit(1);
+				printf("\n\nClosing Connection...\n\nLogging out...\n\n");
+				ret = write(sfd, buf, sizeof(buf));
+				usleep(1000*100);
+				
+				/* Close connection */
+				close(sfd);
+				exit(0);
 			}
 			ret = write(sfd, buf, sizeof(buf));
 			memset(buf, 0, sizeof(buf));
@@ -196,11 +211,4 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
-
-	while(1)
-	{
-	}
-	
-	/* Close connection */
-	close(sfd);
 }

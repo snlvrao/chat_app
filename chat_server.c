@@ -76,6 +76,11 @@ static void tfunc(union sigval sv)
 		else
 		{
 			write(cfd, buffer, attr.mq_msgsize);
+			if(strcmp(buffer, "#Logout") == 0)
+			{
+				/* Close connection */
+				close(cfd);
+			}
 			while(mq_receive(msq_id, buffer, attr.mq_msgsize, 0) >= 0)
 			{
 			}
@@ -96,6 +101,9 @@ int main(int argc, char *argv[])
 		printf("Insufficient arguments\n");
 		exit(1);
 	}
+	
+	/* Server start message */
+	printf("Server running...\n");
 
 	/* Create shared memory */
 	shmid = shmget(SHM_KEY, 4096, IPC_CREAT | 0660);
@@ -248,8 +256,16 @@ int main(int argc, char *argv[])
 				{
 					if(shmptr->online_list[fid - 1].status)
 					{
-						write(cfd, "User_Busy", 10);
-						printf("%d User Busy - Refreshing\n", pid);
+						if(shmptr->online_list[fid - 1].status == 1)
+						{
+							write(cfd, "User_Busy", 10);
+							printf("%d User Busy - Refreshing\n", pid);
+						}
+						else if(shmptr->online_list[fid - 1].status == 2)
+						{
+							write(cfd, "User_Offline", 13);
+							printf("%d User Offline - Refreshing\n", pid);
+						}
 						read(cfd, &fid, sizeof(fid));
 					}
 					else
@@ -301,15 +317,19 @@ int main(int argc, char *argv[])
 					perror("read");
 					exit(1);
 				}
+				if(strcmp(buf, "#Logout") == 0)
+				{
+					shmptr->online_list[cid].status = 2;
+					shmptr->online_list[fid - 1].status = 2;
+					printf("%d Status changed - %s : offline :: %s : offline\n",pid, shmptr->online_list[cid].username, shmptr->online_list[fid - 1].username);
+					mq_send(fq_id, buf, sizeof(buf), 0);
+					
+					/* Close connection */
+					close(cfd);
+					break;
+				}
 				mq_send(fq_id, buf, sizeof(buf), 0);
 			}
-
-			while(1)
-			{
-			}
-			
-			/* Close connection */
-			close(cfd);
 			
 			/* Terminate process */
 			exit(0);
