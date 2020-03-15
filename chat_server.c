@@ -66,9 +66,9 @@ static void tfunc(union sigval sv)
 			char connect_name[30];
 			memset(connect_name, 0, sizeof(connect_name));
 			sscanf(buffer, "%s %s", fqname, connect_name);
-			write(cfd, "Success", 8);
-			usleep(1000*100); // To flush TCP buffer
-			write(cfd, connect_name, sizeof(connect_name));
+			strcpy(buffer, "Success ");
+			strcat(buffer, connect_name);
+			write(cfd, buffer, attr.mq_msgsize);
 			while(mq_receive(msq_id, buffer, attr.mq_msgsize, 0) >= 0)
 			{
 			}
@@ -234,12 +234,23 @@ int main(int argc, char *argv[])
 			/* Acknowledge client connection */
 			while(flag)
 			{
-				printf("%d Sending online list : no. of clients = %d\n", pid, shmptr->online_count);
-				ret = write(cfd, &shmptr->online_count, sizeof(shmptr->online_count));
-				usleep(1000); // To flush TCP buffer
+				printf("%d Sending client list : no. of clients = %d\n", pid, shmptr->online_count);
 				for(i = 0; i < shmptr->online_count; i++)
 				{
-					write(cfd, &shmptr->online_list[i].username, sizeof(shmptr->online_list[i].username));
+					strcpy(buf, shmptr->online_list[i].username);
+					if(shmptr->online_list[i].status == 0)
+					{
+						strcat(buf, " - online");
+					}
+					else if(shmptr->online_list[i].status == 1)
+					{
+						strcat(buf, " - busy");
+					}
+					else
+					{
+						strcat(buf, " - offline");
+					}
+					write(cfd, buf, sizeof(buf));
 					usleep(1000); // To flush TCP buffer
 				}
 				char termination_string[] = "END_OF_CLIST";

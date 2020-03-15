@@ -14,7 +14,7 @@
 
 int main(int argc, char *argv[])
 {
-	int sfd, len, ret, online_count, fid;
+	int sfd, len, ret, fid;
 	char sender[20];
 	char buf[MAXLINE];
 
@@ -56,10 +56,10 @@ int main(int argc, char *argv[])
 	while(1)
 	{
 		int i = 0, selfid;
+		char temp[20];
 		
 		memset(buf, 0, sizeof(buf));
-		ret = read(sfd, &online_count, sizeof(online_count));
-		printf("\n%d Clients Online\n", online_count);
+		printf("\nClient list\n");
 		
 		while(ret = read(sfd, buf, sizeof(buf)))
 		{
@@ -70,7 +70,8 @@ int main(int argc, char *argv[])
 			printf("%d : %s\n", ++i, buf);
 			
 			/* Blacklisting self ID */
-			if(strcmp(buf, argv[3]) == 0)
+			sscanf(buf, "%s %*s %*s %*s", temp);
+			if(strcmp(temp, argv[3]) == 0)
 			{
 				selfid = i;
 			}	
@@ -97,11 +98,10 @@ int main(int argc, char *argv[])
 		if(FD_ISSET(sfd, &read_fds))
 		{
 			read(sfd, buf, sizeof(buf));
-			if(strcmp(buf, "Success") == 0)
+			sscanf(buf, "%s %s", temp, sender);
+			if(strcmp(temp, "Success") == 0)
 			{
-				read(sfd, buf, sizeof(buf));
-				strcpy(sender, buf);
-				printf("\nConnecting to %s...\n", buf);
+				printf("\nConnecting to %s...\n", sender);
 				break;
 			}
 		}
@@ -196,7 +196,7 @@ int main(int argc, char *argv[])
 			{
 				printf("\n\nClosing Connection...\n\nLogging out...\n\n");
 				ret = write(sfd, buf, sizeof(buf));
-				usleep(1000*100);
+				usleep(1000);
 				
 				/* Close connection */
 				close(sfd);
