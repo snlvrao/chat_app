@@ -19,7 +19,7 @@
 #define MAX_CONNECTIONS 4
 #define MAXLINE 1024
 
-int flag = 1, cfd;
+int flag = 1, cfd, g_fid;
 message *shmptr;
 mqd_t fq_id;
 char fqname[20];
@@ -65,7 +65,7 @@ static void tfunc(union sigval sv)
 		{
 			char connect_name[30];
 			memset(connect_name, 0, sizeof(connect_name));
-			sscanf(buffer, "%s %s", fqname, connect_name);
+			sscanf(buffer, "%s %s %d", fqname, connect_name, &g_fid);
 			strcpy(buffer, "Success ");
 			strcat(buffer, connect_name);
 			write(cfd, buffer, attr.mq_msgsize);
@@ -78,6 +78,7 @@ static void tfunc(union sigval sv)
 			write(cfd, buffer, attr.mq_msgsize);
 			if(strcmp(buffer, "#Logout") == 0)
 			{
+				usleep(1000);
 				/* Close connection */
 				close(cfd);
 			}
@@ -172,7 +173,7 @@ int main(int argc, char *argv[])
 
 		if(cpid == 0)
 		{
-			int i, pid, ret, fid, cid;
+			int i, pid, ret, cid, fid;
 			char qname[20];
 			
 			pid = getpid();
@@ -265,14 +266,16 @@ int main(int argc, char *argv[])
 				
 				if(fid)
 				{
-					if(shmptr->online_list[fid - 1].status)
+					fid = fid - 1;
+					g_fid = fid;
+					if(shmptr->online_list[fid].status)
 					{
-						if(shmptr->online_list[fid - 1].status == 1)
+						if(shmptr->online_list[fid].status == 1)
 						{
 							write(cfd, "User_Busy", 10);
 							printf("%d User Busy - Refreshing\n", pid);
 						}
-						else if(shmptr->online_list[fid - 1].status == 2)
+						else if(shmptr->online_list[fid].status == 2)
 						{
 							write(cfd, "User_Offline", 13);
 							printf("%d User Offline - Refreshing\n", pid);
@@ -283,10 +286,14 @@ int main(int argc, char *argv[])
 					{
 						/* Open Message Queue*/
 						char msg[30];
+						char temp[3];
 					    strcpy(msg, qname);
 						strcat(msg, " ");
 						strcat(msg, shmptr->online_list[cid].username);
-						strcpy(fqname, shmptr->online_list[fid - 1].qname);
+						strcpy(fqname, shmptr->online_list[fid].qname);
+						strcat(msg, " ");
+						sprintf(temp, "%d", cid);
+						strcat(msg, temp);
 					   	fq_id = mq_open(fqname, O_RDWR, 0660, NULL);
 	
 						/* Send fqname to message queue */
@@ -298,13 +305,13 @@ int main(int argc, char *argv[])
 						
 						/* Send success and sender tag */
 						strcpy(buf, "# ");
-						strcat(buf, shmptr->online_list[fid - 1].username);
+						strcat(buf, shmptr->online_list[fid].username);
 						ret = write(cfd, buf, sizeof(buf));
 						
 						/* Change status to busy */
 						shmptr->online_list[cid].status = 1;
-						shmptr->online_list[fid - 1].status = 1;
-						printf("%d Connecting - %s : %s\n", pid, shmptr->online_list[cid].username, shmptr->online_list[fid - 1].username);
+						shmptr->online_list[fid].status = 1;
+						printf("%d Connecting - %s : %s\n", pid, shmptr->online_list[cid].username, shmptr->online_list[fid].username);
 						break;
 					}
 				}
@@ -331,9 +338,10 @@ int main(int argc, char *argv[])
 				if(strcmp(buf, "#Logout") == 0)
 				{
 					shmptr->online_list[cid].status = 2;
-					shmptr->online_list[fid - 1].status = 2;
-					printf("%d Status changed - %s : offline :: %s : offline\n",pid, shmptr->online_list[cid].username, shmptr->online_list[fid - 1].username);
+					shmptr->online_list[g_fid].status = 2;
+					printf("%d Status changed - %s : offline :: %s : offline\n",pid, shmptr->online_list[cid].username, shmptr->online_list[g_fid].username);
 					mq_send(fq_id, buf, sizeof(buf), 0);
+					usleep(1000);
 					
 					/* Close connection */
 					close(cfd);
